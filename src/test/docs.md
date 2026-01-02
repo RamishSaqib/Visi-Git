@@ -15,6 +15,7 @@ This directory is referenced by `@/vitest.config.ts` as the `setupFiles` locatio
 **setup.ts:**
 - Imports `@testing-library/jest-dom` to extend Vitest's `expect` with DOM-specific matchers
 - Enables assertions like `toBeInTheDocument()`, `toHaveClass()`, `toHaveStyle()`
+- Provides Canvas 2D context mock for jsdom (needed for pixel diff feature testing)
 
 **Test Configuration (`@/vitest.config.ts`):**
 - Uses jsdom environment to simulate browser DOM

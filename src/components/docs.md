@@ -32,8 +32,10 @@ App.tsx
 - Handles loading and empty states
 
 **ImageComparer** - The core image comparison component
-- Overlays old (HEAD) and new (working) versions
-- Range slider controls opacity of the new image layer
+- Supports two view modes: Onion Skin (opacity blend) and Diff (pixel comparison)
+- Onion Skin: Overlays old (HEAD) and new (working) versions with opacity slider
+- Diff: Highlights changed pixels in magenta, unchanged in grayscale
+- Range slider controls opacity (Onion) or sensitivity threshold (Diff)
 - Special states for new files (no previous) and deleted files (no current)
 - Shows "Select an image to compare" when nothing selected
 
@@ -57,7 +59,11 @@ App.tsx
 | deleted | D | red |
 | unknown | ? | gray |
 
+**View Mode Toggle:** ImageComparer provides a radio button toggle to switch between Onion Skin and Diff modes. The toggle only appears when both current and previous images exist.
+
 **Onion Skin Implementation:** ImageComparer positions both images absolutely within a relative container. The old image is the base layer (full opacity), the new image overlays it with controlled opacity via inline style. The slider range is 0-100, representing the percentage of the new image visible.
+
+**Diff Mode Implementation:** Uses the `computePixelDiff` utility from `@/src/utils/pixelDiff.ts`. Loads both images into temporary canvases, computes per-pixel differences, and renders the result to a visible canvas. The sensitivity slider (0-50) controls the threshold for considering a pixel "changed".
 
 **Deleted File Display:** Deleted files show the previous version with a grayscale filter (`grayscale` class) to visually indicate the file no longer exists.
 
