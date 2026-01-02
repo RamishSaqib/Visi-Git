@@ -4,7 +4,7 @@ Path: @/src/
 
 ### Overview
 
-The React TypeScript frontend for Visi-Git. Uses React 19, Tailwind CSS v4, and Tauri IPC APIs to provide the desktop application's user interface for browsing changed image files and comparing versions with an onion skin slider.
+The React TypeScript frontend for Visi-Git. Uses React 19, Tailwind CSS v4, and Tauri IPC APIs to provide the desktop application's user interface for browsing changed image files and comparing versions with onion skin and pixel diff modes.
 
 ### How it fits into the larger codebase
 
@@ -19,6 +19,7 @@ The frontend is loaded by Tauri's webview from `@/index.html`. It communicates w
         +---> FolderPicker (dialog plugin)
         +---> FileList (display)
         +---> ImageComparer (display + interaction)
+        |           +---> utils/pixelDiff (diff computation)
         +---> ErrorBoundary (error handling)
 ```
 

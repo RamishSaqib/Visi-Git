@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import ImageComparer from './ImageComparer'
 
@@ -6,7 +6,7 @@ describe('ImageComparer', () => {
   const currentSrc = 'data:image/png;base64,currentImageData'
   const previousSrc = 'data:image/png;base64,previousImageData'
 
-  it('renders both images', () => {
+  it('renders both images in onion skin mode', () => {
     render(<ImageComparer currentSrc={currentSrc} previousSrc={previousSrc} />)
 
     const images = screen.getAllByRole('img')
@@ -58,5 +58,91 @@ describe('ImageComparer', () => {
     render(<ImageComparer currentSrc={null} previousSrc={null} />)
 
     expect(screen.getByText(/select an image/i)).toBeInTheDocument()
+  })
+
+  describe('View mode toggle', () => {
+    it('shows view mode toggle when both images present', () => {
+      render(<ImageComparer currentSrc={currentSrc} previousSrc={previousSrc} />)
+      expect(screen.getByRole('radio', { name: /onion skin/i })).toBeInTheDocument()
+      expect(screen.getByRole('radio', { name: /diff/i })).toBeInTheDocument()
+    })
+
+    it('defaults to Onion Skin mode', () => {
+      render(<ImageComparer currentSrc={currentSrc} previousSrc={previousSrc} />)
+      expect(screen.getByRole('radio', { name: /onion skin/i })).toBeChecked()
+    })
+
+    it('switches to Diff mode when toggle clicked', () => {
+      render(<ImageComparer currentSrc={currentSrc} previousSrc={previousSrc} />)
+      fireEvent.click(screen.getByRole('radio', { name: /diff/i }))
+      expect(screen.getByRole('radio', { name: /diff/i })).toBeChecked()
+    })
+
+    it('does not show view mode toggle for new files', () => {
+      render(<ImageComparer currentSrc={currentSrc} previousSrc={null} />)
+      expect(screen.queryByRole('radio', { name: /onion skin/i })).not.toBeInTheDocument()
+    })
+
+    it('does not show view mode toggle for deleted files', () => {
+      render(<ImageComparer currentSrc={null} previousSrc={previousSrc} />)
+      expect(screen.queryByRole('radio', { name: /onion skin/i })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('Diff mode', () => {
+    it('shows sensitivity slider in Diff mode', () => {
+      render(<ImageComparer currentSrc={currentSrc} previousSrc={previousSrc} />)
+      fireEvent.click(screen.getByRole('radio', { name: /diff/i }))
+      expect(screen.getByRole('slider', { name: /sensitivity/i })).toBeInTheDocument()
+    })
+
+    it('hides opacity slider in Diff mode', () => {
+      render(<ImageComparer currentSrc={currentSrc} previousSrc={previousSrc} />)
+      // In onion skin mode, the opacity slider should exist
+      expect(screen.getByRole('slider')).toBeInTheDocument()
+
+      // Switch to diff mode
+      fireEvent.click(screen.getByRole('radio', { name: /diff/i }))
+
+      // The slider should now be the sensitivity slider, not opacity
+      const slider = screen.getByRole('slider')
+      expect(slider).toHaveAttribute('aria-label', 'Sensitivity')
+    })
+
+    it('shows diff canvas in Diff mode', () => {
+      render(<ImageComparer currentSrc={currentSrc} previousSrc={previousSrc} />)
+      fireEvent.click(screen.getByRole('radio', { name: /diff/i }))
+      expect(screen.getByTestId('diff-canvas')).toBeInTheDocument()
+    })
+
+    it('sensitivity slider has default value of 10', () => {
+      render(<ImageComparer currentSrc={currentSrc} previousSrc={previousSrc} />)
+      fireEvent.click(screen.getByRole('radio', { name: /diff/i }))
+      const slider = screen.getByRole('slider', { name: /sensitivity/i })
+      expect(slider).toHaveValue('10')
+    })
+
+    it('sensitivity slider range is 0-50', () => {
+      render(<ImageComparer currentSrc={currentSrc} previousSrc={previousSrc} />)
+      fireEvent.click(screen.getByRole('radio', { name: /diff/i }))
+      const slider = screen.getByRole('slider', { name: /sensitivity/i })
+      expect(slider).toHaveAttribute('min', '0')
+      expect(slider).toHaveAttribute('max', '50')
+    })
+  })
+
+  describe('Onion Skin mode', () => {
+    it('shows opacity slider in Onion Skin mode', () => {
+      render(<ImageComparer currentSrc={currentSrc} previousSrc={previousSrc} />)
+      // Default is onion skin mode
+      const slider = screen.getByRole('slider')
+      expect(slider).toBeInTheDocument()
+    })
+
+    it('hides diff canvas in Onion Skin mode', () => {
+      render(<ImageComparer currentSrc={currentSrc} previousSrc={previousSrc} />)
+      // Default is onion skin mode
+      expect(screen.queryByTestId('diff-canvas')).not.toBeInTheDocument()
+    })
   })
 })
