@@ -59,4 +59,70 @@ describe('ImageComparer', () => {
 
     expect(screen.getByText(/select an image/i)).toBeInTheDocument()
   })
+
+  describe('view mode toggle', () => {
+    it('renders view mode toggle when both images present', () => {
+      render(<ImageComparer currentSrc={currentSrc} previousSrc={previousSrc} />)
+
+      expect(screen.getByRole('radio', { name: /onion skin/i })).toBeInTheDocument()
+      expect(screen.getByRole('radio', { name: /side by side/i })).toBeInTheDocument()
+    })
+
+    it('Onion Skin is selected by default', () => {
+      render(<ImageComparer currentSrc={currentSrc} previousSrc={previousSrc} />)
+
+      const onionSkinRadio = screen.getByRole('radio', { name: /onion skin/i })
+      expect(onionSkinRadio).toBeChecked()
+    })
+
+    it('clicking Side by Side switches the mode', () => {
+      render(<ImageComparer currentSrc={currentSrc} previousSrc={previousSrc} />)
+
+      const sideBySideRadio = screen.getByRole('radio', { name: /side by side/i })
+      fireEvent.click(sideBySideRadio)
+
+      expect(sideBySideRadio).toBeChecked()
+      expect(screen.getByRole('radio', { name: /onion skin/i })).not.toBeChecked()
+    })
+
+    it('side-by-side mode shows two images in separate containers', () => {
+      render(<ImageComparer currentSrc={currentSrc} previousSrc={previousSrc} />)
+
+      // Switch to side-by-side mode
+      const sideBySideRadio = screen.getByRole('radio', { name: /side by side/i })
+      fireEvent.click(sideBySideRadio)
+
+      // Should have "Old" and "New" labels in the side-by-side view
+      expect(screen.getByText('Old')).toBeInTheDocument()
+      expect(screen.getByText('New')).toBeInTheDocument()
+    })
+
+    it('opacity slider only shows in onion skin mode', () => {
+      render(<ImageComparer currentSrc={currentSrc} previousSrc={previousSrc} />)
+
+      // Slider should be present in default onion skin mode
+      expect(screen.getByRole('slider')).toBeInTheDocument()
+
+      // Switch to side-by-side mode
+      const sideBySideRadio = screen.getByRole('radio', { name: /side by side/i })
+      fireEvent.click(sideBySideRadio)
+
+      // Slider should not be present in side-by-side mode
+      expect(screen.queryByRole('slider')).not.toBeInTheDocument()
+    })
+
+    it('toggle does NOT appear for new files', () => {
+      render(<ImageComparer currentSrc={currentSrc} previousSrc={null} />)
+
+      expect(screen.queryByRole('radio', { name: /onion skin/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('radio', { name: /side by side/i })).not.toBeInTheDocument()
+    })
+
+    it('toggle does NOT appear for deleted files', () => {
+      render(<ImageComparer currentSrc={null} previousSrc={previousSrc} />)
+
+      expect(screen.queryByRole('radio', { name: /onion skin/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('radio', { name: /side by side/i })).not.toBeInTheDocument()
+    })
+  })
 })
