@@ -12,6 +12,16 @@ pub struct ChangedFile {
     pub status: String, // "modified", "added", or "deleted"
 }
 
+/// Represents information about a git commit
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CommitInfo {
+    pub hash: String,
+    pub short_hash: String,
+    pub message: String,
+    pub author: String,
+    pub date: String,
+}
+
 /// Image file extensions we care about
 const IMAGE_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "gif", "svg", "webp", "bmp", "ico"];
 
@@ -124,6 +134,82 @@ pub fn get_file_at_head_impl(repo_path: &str, file_path: &str) -> Result<String,
     Ok(STANDARD.encode(&output.stdout))
 }
 
+/// Core logic: Gets the list of commits in the repository
+pub fn get_commits_impl(repo_path: &str, limit: u32) -> Result<Vec<CommitInfo>, String> {
+    let path = Path::new(repo_path);
+
+    if !path.exists() {
+        return Err(format!("Repository path does not exist: {}", repo_path));
+    }
+
+    // Run git log with custom format: hash|short_hash|message|author|date
+    let output = Command::new("git")
+        .args([
+            "log",
+            &format!("-{}", limit),
+            "--format=%H|%h|%s|%an|%ai",
+        ])
+        .current_dir(path)
+        .output()
+        .map_err(|e| format!("Failed to run git log: {}", e))?;
+
+    if !output.status.success() {
+        return Err(format!(
+            "git log failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut commits = Vec::new();
+
+    for line in stdout.lines() {
+        let parts: Vec<&str> = line.splitn(5, '|').collect();
+        if parts.len() == 5 {
+            commits.push(CommitInfo {
+                hash: parts[0].to_string(),
+                short_hash: parts[1].to_string(),
+                message: parts[2].to_string(),
+                author: parts[3].to_string(),
+                date: parts[4].to_string(),
+            });
+        }
+    }
+
+    Ok(commits)
+}
+
+/// Core logic: Gets the base64-encoded content of a file at a specific commit
+pub fn get_file_at_commit_impl(
+    repo_path: &str,
+    file_path: &str,
+    commit_hash: &str,
+) -> Result<String, String> {
+    let path = Path::new(repo_path);
+
+    if !path.exists() {
+        return Err(format!("Repository path does not exist: {}", repo_path));
+    }
+
+    // Run git show {commit}:{file_path}
+    let output = Command::new("git")
+        .args(["show", &format!("{}:{}", commit_hash, file_path)])
+        .current_dir(path)
+        .output()
+        .map_err(|e| format!("Failed to run git show: {}", e))?;
+
+    if !output.status.success() {
+        return Err(format!(
+            "File does not exist at commit {}: {}",
+            commit_hash,
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+
+    // Encode the binary content as base64
+    Ok(STANDARD.encode(&output.stdout))
+}
+
 // ============================================
 // Tauri Commands (thin wrappers around core logic)
 // ============================================
@@ -143,6 +229,20 @@ fn get_file_at_head(repo_path: &str, file_path: &str) -> Result<String, String> 
     get_file_at_head_impl(repo_path, file_path)
 }
 
+#[tauri::command]
+fn get_commits(repo_path: &str, limit: u32) -> Result<Vec<CommitInfo>, String> {
+    get_commits_impl(repo_path, limit)
+}
+
+#[tauri::command]
+fn get_file_at_commit(
+    repo_path: &str,
+    file_path: &str,
+    commit_hash: &str,
+) -> Result<String, String> {
+    get_file_at_commit_impl(repo_path, file_path, commit_hash)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -152,7 +252,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             validate_git_repo,
             get_changed_files,
-            get_file_at_head
+            get_file_at_head,
+            get_commits,
+            get_file_at_commit
         ])
         .setup(|app| {
             #[cfg(debug_assertions)]
@@ -429,5 +531,113 @@ mod tests {
         assert!(!is_image_file("script.js"));
         assert!(!is_image_file("README.md"));
         assert!(!is_image_file("data.json"));
+    }
+
+    // ============================================
+    // Tests for get_commits_impl
+    // ============================================
+
+    #[test]
+    fn test_get_commits_returns_commit_history() {
+        let temp_repo = create_test_git_repo();
+        let path = temp_repo.path();
+        let path_str = path.to_str().unwrap();
+
+        // Create first commit
+        fs::write(path.join("file1.txt"), "content 1").expect("Failed to write file1");
+        Command::new("git")
+            .args(["add", "."])
+            .current_dir(path)
+            .output()
+            .expect("Failed to add files");
+        Command::new("git")
+            .args(["commit", "-m", "First commit"])
+            .current_dir(path)
+            .output()
+            .expect("Failed to create first commit");
+
+        // Create second commit
+        fs::write(path.join("file2.txt"), "content 2").expect("Failed to write file2");
+        Command::new("git")
+            .args(["add", "."])
+            .current_dir(path)
+            .output()
+            .expect("Failed to add files");
+        Command::new("git")
+            .args(["commit", "-m", "Second commit"])
+            .current_dir(path)
+            .output()
+            .expect("Failed to create second commit");
+
+        let result = get_commits_impl(path_str, 10);
+
+        assert!(result.is_ok(), "Expected Ok result, got {:?}", result);
+        let commits = result.unwrap();
+        assert_eq!(commits.len(), 2, "Expected 2 commits");
+
+        // Most recent commit should be first
+        assert_eq!(commits[0].message, "Second commit");
+        assert_eq!(commits[1].message, "First commit");
+
+        // Verify commit info structure
+        assert!(!commits[0].hash.is_empty(), "Hash should not be empty");
+        assert!(!commits[0].short_hash.is_empty(), "Short hash should not be empty");
+        assert!(!commits[0].author.is_empty(), "Author should not be empty");
+        assert!(!commits[0].date.is_empty(), "Date should not be empty");
+    }
+
+    // ============================================
+    // Tests for get_file_at_commit_impl
+    // ============================================
+
+    #[test]
+    fn test_get_file_at_commit_returns_correct_content() {
+        let temp_repo = create_test_git_repo();
+        let path = temp_repo.path();
+        let path_str = path.to_str().unwrap();
+
+        // Create first commit with initial content
+        let initial_content = b"initial image content";
+        fs::write(path.join("test.png"), initial_content).expect("Failed to write file");
+        Command::new("git")
+            .args(["add", "."])
+            .current_dir(path)
+            .output()
+            .expect("Failed to add files");
+        Command::new("git")
+            .args(["commit", "-m", "First commit"])
+            .current_dir(path)
+            .output()
+            .expect("Failed to create first commit");
+
+        // Get the first commit hash
+        let output = Command::new("git")
+            .args(["rev-parse", "HEAD"])
+            .current_dir(path)
+            .output()
+            .expect("Failed to get commit hash");
+        let first_commit_hash = String::from_utf8_lossy(&output.stdout).trim().to_string();
+
+        // Create second commit with modified content
+        let modified_content = b"modified image content";
+        fs::write(path.join("test.png"), modified_content).expect("Failed to write modified file");
+        Command::new("git")
+            .args(["add", "."])
+            .current_dir(path)
+            .output()
+            .expect("Failed to add files");
+        Command::new("git")
+            .args(["commit", "-m", "Second commit"])
+            .current_dir(path)
+            .output()
+            .expect("Failed to create second commit");
+
+        // Get file content at first commit
+        let result = get_file_at_commit_impl(path_str, "test.png", &first_commit_hash);
+
+        assert!(result.is_ok(), "Expected Ok result, got {:?}", result);
+        let base64_content = result.unwrap();
+        let decoded = STANDARD.decode(&base64_content).expect("Failed to decode base64");
+        assert_eq!(decoded, initial_content, "Content at first commit should match initial content");
     }
 }

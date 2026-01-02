@@ -39,13 +39,16 @@ npm run build               # Runs tsc && vite build
 - `src/components/ImageComparer.tsx` - Onion skin slider for overlaying old/new images
 - `src/components/FileList.tsx` - Sidebar listing changed image files
 - `src/components/FolderPicker.tsx` - Repository selection using Tauri dialog plugin
-- `src/types.ts` - Shared TypeScript interfaces (`ChangedFile`, `ImageData`, `AppState`)
+- `src/components/CommitSelector.tsx` - Dropdown for selecting commits to compare
+- `src/types.ts` - Shared TypeScript interfaces (`ChangedFile`, `ImageData`, `AppState`, `CommitInfo`)
 
 ### Backend (Rust + Tauri v2)
 - `src-tauri/src/lib.rs` - All backend logic:
   - `validate_git_repo` - Checks if path contains `.git` directory
   - `get_changed_files` - Runs `git status --porcelain`, filters for image extensions
   - `get_file_at_head` - Runs `git show HEAD:<path>` and returns base64-encoded content
+  - `get_commits` - Runs `git log` and returns commit history
+  - `get_file_at_commit` - Runs `git show {hash}:<path>` and returns file at specific commit
   - Core logic is in `_impl` functions for testability; Tauri commands are thin wrappers
 - `src-tauri/src/main.rs` - Entry point, calls `visi_git_lib::run()`
 

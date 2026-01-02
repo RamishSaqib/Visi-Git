@@ -24,6 +24,14 @@ struct ChangedFile {
     filename: String,  // Just the file name
     status: String,    // "modified", "added", or "deleted"
 }
+
+struct CommitInfo {
+    hash: String,        // Full commit hash
+    short_hash: String,  // Abbreviated hash (7 chars)
+    message: String,     // Commit message (first line)
+    author: String,      // Author name
+    date: String,        // Commit date in ISO format
+}
 ```
 
 **lib.rs - Core Functions:**
@@ -33,16 +41,20 @@ struct ChangedFile {
 | `validate_git_repo_impl` | Check if path is a git repo | (checks for `.git` dir) |
 | `get_changed_files_impl` | List changed image files | `git status --porcelain` |
 | `get_file_at_head_impl` | Get file content at HEAD | `git show HEAD:<path>` |
+| `get_commits_impl` | Get commit history | `git log --format=...` |
+| `get_file_at_commit_impl` | Get file at specific commit | `git show {hash}:<path>` |
 
 **lib.rs - Tauri Commands:**
 - `validate_git_repo(path)` -> `Result<bool, String>`
 - `get_changed_files(repo_path)` -> `Result<Vec<ChangedFile>, String>`
 - `get_file_at_head(repo_path, file_path)` -> `Result<String, String>`
+- `get_commits(repo_path, limit)` -> `Result<Vec<CommitInfo>, String>`
+- `get_file_at_commit(repo_path, file_path, commit_hash)` -> `Result<String, String>`
 
 **lib.rs - run() function:**
 - Initializes Tauri Builder
 - Registers all three plugins (shell, dialog, fs)
-- Registers the three IPC command handlers
+- Registers all five IPC command handlers
 - Opens DevTools in debug builds
 - Starts the Tauri event loop
 

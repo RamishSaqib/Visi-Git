@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { open } from '@tauri-apps/plugin-dialog'
 import { readFile } from '@tauri-apps/plugin-fs'
-import type { ChangedFile, ImageData } from '../types'
+import type { ChangedFile, ImageData, CommitInfo } from '../types'
 
 interface UseGitRepoState {
   repoPath: string | null
@@ -12,6 +12,9 @@ interface UseGitRepoState {
   isLoading: boolean
   error: string | null
   imageData: ImageData
+  commits: CommitInfo[]
+  baseCommit: string | null
+  compareCommit: string | null
 }
 
 interface UseGitRepoReturn extends UseGitRepoState {
@@ -19,6 +22,9 @@ interface UseGitRepoReturn extends UseGitRepoState {
   refreshFiles: () => Promise<void>
   selectFile: (path: string) => Promise<void>
   clearError: () => void
+  loadCommits: () => Promise<void>
+  selectBaseCommit: (hash: string | null) => void
+  selectCompareCommit: (hash: string | null) => void
 }
 
 export function useGitRepo(): UseGitRepoReturn {
@@ -30,6 +36,9 @@ export function useGitRepo(): UseGitRepoReturn {
     isLoading: false,
     error: null,
     imageData: { currentSrc: null, previousSrc: null },
+    commits: [],
+    baseCommit: null,
+    compareCommit: null,
   })
 
   const clearError = useCallback(() => {
@@ -72,14 +81,20 @@ export function useGitRepo(): UseGitRepoReturn {
       // Get changed files
       const files = await invoke<ChangedFile[]>('get_changed_files', { repoPath })
 
+      // Get commit history
+      const commits = await invoke<CommitInfo[]>('get_commits', { repoPath, limit: 50 })
+
       setState((prev) => ({
         ...prev,
         repoPath,
         isValidRepo: true,
         changedFiles: files,
+        commits,
         selectedFile: null,
         isLoading: false,
         imageData: { currentSrc: null, previousSrc: null },
+        baseCommit: null,
+        compareCommit: null,
       }))
     } catch (err) {
       setState((prev) => ({
@@ -172,12 +187,48 @@ export function useGitRepo(): UseGitRepoReturn {
     [state.repoPath, state.changedFiles]
   )
 
+  const loadCommits = useCallback(async () => {
+    if (!state.repoPath) return
+
+    try {
+      setState((prev) => ({ ...prev, isLoading: true, error: null }))
+
+      const commits = await invoke<CommitInfo[]>('get_commits', {
+        repoPath: state.repoPath,
+        limit: 50,
+      })
+
+      setState((prev) => ({
+        ...prev,
+        commits,
+        isLoading: false,
+      }))
+    } catch (err) {
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        error: `Failed to load commits: ${err}`,
+      }))
+    }
+  }, [state.repoPath])
+
+  const selectBaseCommit = useCallback((hash: string | null) => {
+    setState((prev) => ({ ...prev, baseCommit: hash }))
+  }, [])
+
+  const selectCompareCommit = useCallback((hash: string | null) => {
+    setState((prev) => ({ ...prev, compareCommit: hash }))
+  }, [])
+
   return {
     ...state,
     openRepo,
     refreshFiles,
     selectFile,
     clearError,
+    loadCommits,
+    selectBaseCommit,
+    selectCompareCommit,
   }
 }
 

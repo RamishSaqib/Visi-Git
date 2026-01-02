@@ -16,6 +16,8 @@ useGitRepo
     +-- invoke('validate_git_repo') --> Rust backend
     +-- invoke('get_changed_files') --> Rust backend
     +-- invoke('get_file_at_head')  --> Rust backend
+    +-- invoke('get_commits')       --> Rust backend
+    +-- invoke('get_file_at_commit') --> Rust backend
     +-- open() --> @tauri-apps/plugin-dialog
     +-- readFile() --> @tauri-apps/plugin-fs
 ```
@@ -30,12 +32,18 @@ useGitRepo
 - `isLoading`: Loading state for async operations
 - `error`: Error message string or null
 - `imageData`: Object with `currentSrc` and `previousSrc` data URLs
+- `commits`: Array of `CommitInfo` objects for commit history
+- `baseCommit`: Selected base commit hash for comparison or null (Working Directory)
+- `compareCommit`: Selected compare commit hash or null (Working Directory)
 
 **Actions:**
-- `openRepo()`: Opens folder dialog, validates repo, loads changed files
+- `openRepo()`: Opens folder dialog, validates repo, loads changed files and commits
 - `refreshFiles()`: Reloads changed files for current repo
 - `selectFile(path)`: Loads both versions of the selected image
 - `clearError()`: Clears the error state
+- `loadCommits()`: Fetches commit history from backend
+- `selectBaseCommit(hash)`: Sets the base commit for comparison
+- `selectCompareCommit(hash)`: Sets the compare commit for comparison
 
 **Image Loading in `selectFile`:**
 1. For non-deleted files: reads current version from disk via `readFile`
