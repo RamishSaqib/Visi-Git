@@ -17,3 +17,11 @@ export interface ImageData {
   currentSrc: string | null;
   previousSrc: string | null;
 }
+
+export interface CommitInfo {
+  hash: string;
+  short_hash: string;
+  message: string;
+  author: string;
+  date: string;
+}

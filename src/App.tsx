@@ -3,6 +3,7 @@ import FileList from './components/FileList'
 import ImageComparer from './components/ImageComparer'
 import FolderPicker from './components/FolderPicker'
 import ErrorBoundary from './components/ErrorBoundary'
+import CommitSelector from './components/CommitSelector'
 
 function App() {
   const {
@@ -12,10 +13,15 @@ function App() {
     isLoading,
     error,
     imageData,
+    commits,
+    baseCommit,
+    compareCommit,
     openRepo,
     refreshFiles,
     selectFile,
     clearError,
+    selectBaseCommit,
+    selectCompareCommit,
   } = useGitRepo()
 
   return (
@@ -86,6 +92,22 @@ function App() {
             <>
               {/* File List Sidebar */}
               <aside className="w-64 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-y-auto">
+                {/* Commit Selectors */}
+                <div className="p-3 border-b border-gray-200 dark:border-gray-700 space-y-3">
+                  <CommitSelector
+                    commits={commits}
+                    selectedCommit={baseCommit}
+                    onSelect={selectBaseCommit}
+                    label="Base (Before)"
+                  />
+                  <CommitSelector
+                    commits={commits}
+                    selectedCommit={compareCommit}
+                    onSelect={selectCompareCommit}
+                    label="Compare (After)"
+                  />
+                </div>
+
                 <div className="p-3 border-b border-gray-200 dark:border-gray-700">
                   <h2 className="font-medium text-sm text-gray-600 dark:text-gray-300">
                     Changed Images
