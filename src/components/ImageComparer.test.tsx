@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import ImageComparer from './ImageComparer'
 
@@ -61,9 +61,10 @@ describe('ImageComparer', () => {
   })
 
   describe('View mode toggle', () => {
-    it('shows view mode toggle when both images present', () => {
+    it('shows all three view mode options when both images present', () => {
       render(<ImageComparer currentSrc={currentSrc} previousSrc={previousSrc} />)
       expect(screen.getByRole('radio', { name: /onion skin/i })).toBeInTheDocument()
+      expect(screen.getByRole('radio', { name: /side by side/i })).toBeInTheDocument()
       expect(screen.getByRole('radio', { name: /diff/i })).toBeInTheDocument()
     })
 
@@ -76,6 +77,14 @@ describe('ImageComparer', () => {
       render(<ImageComparer currentSrc={currentSrc} previousSrc={previousSrc} />)
       fireEvent.click(screen.getByRole('radio', { name: /diff/i }))
       expect(screen.getByRole('radio', { name: /diff/i })).toBeChecked()
+    })
+
+    it('switches to Side by Side mode when toggle clicked', () => {
+      render(<ImageComparer currentSrc={currentSrc} previousSrc={previousSrc} />)
+      const sideBySideRadio = screen.getByRole('radio', { name: /side by side/i })
+      fireEvent.click(sideBySideRadio)
+      expect(sideBySideRadio).toBeChecked()
+      expect(screen.getByRole('radio', { name: /onion skin/i })).not.toBeChecked()
     })
 
     it('does not show view mode toggle for new files', () => {
@@ -128,6 +137,34 @@ describe('ImageComparer', () => {
       const slider = screen.getByRole('slider', { name: /sensitivity/i })
       expect(slider).toHaveAttribute('min', '0')
       expect(slider).toHaveAttribute('max', '50')
+    })
+  })
+
+  describe('Side by Side mode', () => {
+    it('shows two images in separate containers with labels', () => {
+      render(<ImageComparer currentSrc={currentSrc} previousSrc={previousSrc} />)
+
+      // Switch to side-by-side mode
+      const sideBySideRadio = screen.getByRole('radio', { name: /side by side/i })
+      fireEvent.click(sideBySideRadio)
+
+      // Should have "Old" and "New" labels in the side-by-side view
+      expect(screen.getByText('Old')).toBeInTheDocument()
+      expect(screen.getByText('New')).toBeInTheDocument()
+    })
+
+    it('hides opacity slider in side-by-side mode', () => {
+      render(<ImageComparer currentSrc={currentSrc} previousSrc={previousSrc} />)
+
+      // Slider should be present in default onion skin mode
+      expect(screen.getByRole('slider')).toBeInTheDocument()
+
+      // Switch to side-by-side mode
+      const sideBySideRadio = screen.getByRole('radio', { name: /side by side/i })
+      fireEvent.click(sideBySideRadio)
+
+      // Slider should not be present in side-by-side mode
+      expect(screen.queryByRole('slider')).not.toBeInTheDocument()
     })
   })
 

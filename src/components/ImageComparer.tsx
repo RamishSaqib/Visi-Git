@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { computePixelDiff } from '../utils/pixelDiff'
 
-type ViewMode = 'onion' | 'diff'
+type ViewMode = 'onion' | 'side-by-side' | 'diff'
 
 interface ImageComparerProps {
   currentSrc: string | null
@@ -153,6 +153,26 @@ export default function ImageComparer({ currentSrc, previousSrc }: ImageComparer
             <input
               type="radio"
               name="viewMode"
+              value="side-by-side"
+              checked={viewMode === 'side-by-side'}
+              onChange={() => setViewMode('side-by-side')}
+              className="sr-only"
+              aria-label="Side by Side"
+            />
+            <span
+              className={`px-2 py-1 text-xs rounded ${
+                viewMode === 'side-by-side'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+              }`}
+            >
+              Side by Side
+            </span>
+          </label>
+          <label className="flex items-center gap-1 cursor-pointer">
+            <input
+              type="radio"
+              name="viewMode"
               value="diff"
               checked={viewMode === 'diff'}
               onChange={() => setViewMode('diff')}
@@ -177,84 +197,116 @@ export default function ImageComparer({ currentSrc, previousSrc }: ImageComparer
       </div>
 
       {/* Image comparison area */}
-      <div className="flex-1 relative overflow-hidden">
-        {viewMode === 'onion' ? (
-          <>
-            {/* Old image (base layer) */}
-            <img
-              src={previousSrc!}
-              alt="Old version"
-              className="absolute inset-0 w-full h-full object-contain"
-            />
+      {viewMode === 'onion' && (
+        <div className="flex-1 relative overflow-hidden">
+          {/* Old image (base layer) */}
+          <img
+            src={previousSrc!}
+            alt="Old version"
+            className="absolute inset-0 w-full h-full object-contain"
+          />
 
-            {/* New image (overlay with opacity) */}
-            <img
-              src={currentSrc!}
-              alt="New version"
-              className="absolute inset-0 w-full h-full object-contain"
-              style={{ opacity: opacity / 100 }}
-            />
-          </>
-        ) : (
-          <div className="flex items-center justify-center h-full">
-            <canvas
-              ref={canvasRef}
-              data-testid="diff-canvas"
-              className="max-w-full max-h-full object-contain"
-            />
+          {/* New image (overlay with opacity) */}
+          <img
+            src={currentSrc!}
+            alt="New version"
+            className="absolute inset-0 w-full h-full object-contain"
+            style={{ opacity: opacity / 100 }}
+          />
+        </div>
+      )}
+
+      {viewMode === 'side-by-side' && (
+        <div className="flex-1 flex overflow-hidden">
+          {/* Old image container */}
+          <div className="flex-1 flex flex-col border-r border-gray-300 dark:border-gray-600">
+            <div className="text-center py-1 bg-gray-200 dark:bg-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300">
+              Old
+            </div>
+            <div className="flex-1 flex items-center justify-center p-2 overflow-hidden">
+              <img
+                src={previousSrc!}
+                alt="Old version"
+                className="max-w-full max-h-full object-contain"
+              />
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* New image container */}
+          <div className="flex-1 flex flex-col">
+            <div className="text-center py-1 bg-gray-200 dark:bg-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300">
+              New
+            </div>
+            <div className="flex-1 flex items-center justify-center p-2 overflow-hidden">
+              <img
+                src={currentSrc!}
+                alt="New version"
+                className="max-w-full max-h-full object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewMode === 'diff' && (
+        <div className="flex-1 flex items-center justify-center overflow-hidden">
+          <canvas
+            ref={canvasRef}
+            data-testid="diff-canvas"
+            className="max-w-full max-h-full object-contain"
+          />
+        </div>
+      )}
 
       {/* Slider control - different based on view mode */}
-      <div className="p-4 bg-gray-100 dark:bg-gray-800">
-        {viewMode === 'onion' ? (
-          <>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-600 dark:text-gray-300 w-16">
-                Old
-              </span>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={opacity}
-                onChange={(e) => setOpacity(Number(e.target.value))}
-                className="flex-1 h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
-              />
-              <span className="text-sm text-gray-600 dark:text-gray-300 w-16 text-right">
-                New
-              </span>
-            </div>
-            <div className="text-center mt-1 text-xs text-gray-500 dark:text-gray-400">
-              {opacity}% new / {100 - opacity}% old
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-600 dark:text-gray-300 w-16">
-                Sensitive
-              </span>
-              <input
-                type="range"
-                min="0"
-                max="50"
-                value={sensitivity}
-                onChange={(e) => setSensitivity(Number(e.target.value))}
-                aria-label="Sensitivity"
-                className="flex-1 h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
-              />
-              <span className="text-sm text-gray-600 dark:text-gray-300 w-16 text-right">
-                Tolerant
-              </span>
-            </div>
-            <div className="text-center mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Threshold: {sensitivity}{diffStats && ` | Changed: ${diffStats.changed}/${diffStats.total} pixels (${((diffStats.changed / diffStats.total) * 100).toFixed(1)}%)`}
-            </div>
-          </>
-        )}
-      </div>
+      {viewMode === 'onion' && (
+        <div className="p-4 bg-gray-100 dark:bg-gray-800">
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-gray-600 dark:text-gray-300 w-16">
+              Old
+            </span>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={opacity}
+              onChange={(e) => setOpacity(Number(e.target.value))}
+              className="flex-1 h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+            />
+            <span className="text-sm text-gray-600 dark:text-gray-300 w-16 text-right">
+              New
+            </span>
+          </div>
+          <div className="text-center mt-1 text-xs text-gray-500 dark:text-gray-400">
+            {opacity}% new / {100 - opacity}% old
+          </div>
+        </div>
+      )}
+
+      {viewMode === 'diff' && (
+        <div className="p-4 bg-gray-100 dark:bg-gray-800">
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-gray-600 dark:text-gray-300 w-16">
+              Sensitive
+            </span>
+            <input
+              type="range"
+              min="0"
+              max="50"
+              value={sensitivity}
+              onChange={(e) => setSensitivity(Number(e.target.value))}
+              aria-label="Sensitivity"
+              className="flex-1 h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+            />
+            <span className="text-sm text-gray-600 dark:text-gray-300 w-16 text-right">
+              Tolerant
+            </span>
+          </div>
+          <div className="text-center mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Threshold: {sensitivity}{diffStats && ` | Changed: ${diffStats.changed}/${diffStats.total} pixels (${((diffStats.changed / diffStats.total) * 100).toFixed(1)}%)`}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
