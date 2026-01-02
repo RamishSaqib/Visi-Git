@@ -20,7 +20,10 @@ App.tsx
    |       |     +-- Refresh button
    |       |
    |       +-- Main
-   |             +-- FileList (sidebar)
+   |             +-- Sidebar
+   |             |     +-- CommitSelector (Base)
+   |             |     +-- CommitSelector (Compare)
+   |             |     +-- FileList
    |             +-- ImageComparer (main area)
 ```
 
@@ -46,6 +49,11 @@ App.tsx
 - Catches render errors in child tree
 - Displays error message with reload button
 - Uses `getDerivedStateFromError` lifecycle method
+
+**CommitSelector** - Dropdown for selecting commits to compare
+- Shows "Working Directory" option plus commit history
+- Displays short hash and commit message for each commit
+- Used in pairs (Base and Compare) in sidebar
 
 ### Things to Know
 
