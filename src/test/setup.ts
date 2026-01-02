@@ -56,7 +56,10 @@ class MockCanvasRenderingContext2D {
   rotate(): void {}
 }
 
-HTMLCanvasElement.prototype.getContext = function (contextId: string) {
+HTMLCanvasElement.prototype.getContext = function (
+  this: HTMLCanvasElement,
+  contextId: string
+) {
   if (contextId === '2d') {
     return new MockCanvasRenderingContext2D(this) as unknown as CanvasRenderingContext2D
   }
